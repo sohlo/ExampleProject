@@ -1,0 +1,181 @@
+﻿@{
+    ViewBag.Title = "Home Page";
+}
+    <div class="jumbotron">
+        <form method="get">
+            
+            <div class="col-md-4 form-group">
+                <input placeholder="Otsi" class="form-control" type="text" style="min-height: 50px; " id="searchText"/>
+            </div>
+            
+            <div class="col-md-6 form-group">
+                <button id="search" type="submit" class="btn btn-default"><img src="~/Content/ic_arrow_forward_black_36dp_1x.png"/></button>
+            </div>
+            
+            <div class="col-md-1 form-group">
+                <button id="previousPage" class="btn btn-default"><img src="~/Content/ic_chevron_left_black_36dp_1x.png" /></button>
+            </div>
+            
+            <div class="col-md-1 form-group">
+                <button id="nextPage" class="btn btn-default"><img src="~/Content/ic_chevron_right_black_36dp_1x.png"/></button>
+            </div>
+        </form>
+        <br/>
+        <div id="results"></div>
+
+    </div>
+
+@section scripts
+{
+    <script type="text/javascript">
+        $(document).ready(function () {
+
+            var offset = 0;
+            var url = "https://api.cognitive.microsoft.com/bing/v5.0/search?&count=13&mkt=en-us&safesearch=Moderate"
+            var header = { "Ocp-Apim-Subscription-Key": "e9293c336a3549ef8becb4db1756ad3d" };
+            var loadedPages = [];
+            var pageCounter = 0;
+            var $items = [];
+            var $preloadeditems = [];
+
+            if (pageCounter == 0) {
+                $("#previousPage").attr('disabled', 'disabled');
+                $("#previousPage").attr('style', 'opacity: 0.5;');
+                $("#nextPage").attr('disabled', 'disabled');
+                $("#nextPage").attr('style', 'opacity: 0.5;');
+            }
+            
+
+            $("#search").click(function (e) {
+                loadedPages = [];
+                offset = 0;
+                pageCounter = 0;
+                $items = [];
+                $preloadeditems = [];
+
+                getData();
+                preloadData();
+                loadResultsToScreen();
+                loadedPages.push($items);
+
+                $("#nextPage").removeAttr('disabled');
+                $("#nextPage").removeAttr('style');
+
+                e.preventDefault();
+            });
+            $("#previousPage").click(function (e) {
+
+                pageCounter--;
+
+                $items = loadedPages[pageCounter];
+                loadResultsToScreen();
+                if (pageCounter == 0) {
+                    $("#previousPage").attr('disabled', 'disabled');
+                    $("#previousPage").attr('style', 'opacity: 0.5;');
+                }
+
+                e.preventDefault();
+            });
+
+
+            $("#nextPage").click(function (e) {
+                pageCounter++;
+                if (loadedPages[pageCounter] == null) {
+                    loadedPages[pageCounter-1] = $items;
+                    $items = $preloadeditems;
+                    preloadData();
+                } else {
+                    $items = loadedPages[pageCounter];
+                }
+
+                loadResultsToScreen();
+                $("#previousPage").removeAttr('disabled');
+                $("#previousPage").removeAttr('style');
+                e.preventDefault();
+
+            });
+
+
+            function getData() {
+
+                var text = $("#searchText").val();
+                
+
+                $.ajax({
+                    type: 'GET',
+                    url: url + "&offset=" + offset + "&q=" + encodeURI(text),
+                    headers: header,
+                    async: false
+
+                }).success(function (data) {
+                    if (data.webPages != null) {
+                        $items = data.webPages.value;
+                    } else {
+                        var results = $("#results");
+                        results.slideUp(200);
+                        results.fadeToggle(1000);
+                        results.slideDown(600);
+                        results.html("Tulemusi pole.");
+                    }
+                }).fail(function (data) {
+                    var results = $("#results");
+                    results.slideUp(200);
+                    results.fadeToggle(1000);
+                    results.slideDown(600);
+                    results.html("Tulemusi pole.");
+                });
+            }
+
+            function preloadData() {
+                var text = $("#searchText").val();
+
+                $.ajax({
+                    type: 'GET',
+                    url: url + "&offset=" + (offset += 13) + "&q=" + encodeURI(text),
+                    headers: header
+                }).success(function (data) {
+                    if (data.webPages != null) {
+                        $preloadeditems = data.webPages.value;
+                    } else {
+                        var results = $("#results");
+                        results.slideUp(200);
+                        results.fadeToggle(1000);
+                        results.slideDown(600);
+                        results.html("Tulemusi pole.");
+                    }
+                }).fail(function(data) {
+                     console.log("Tekkis viga : " + data);
+                });
+            }
+            function loadResultsToScreen() {
+
+                var results = $("#results");
+                results.slideUp(200);
+
+
+                var html = [];
+                html.push('<table width="100%" border="0" cellspacing="0" cellpadding="3"><tbody>');
+                for (var i = 0; i < $items.length; ++i) {
+                    var item = $items[i];
+                    var name = item.name;
+                    var snippet = item.snippet;
+                    var url = item.url;
+                    var urlD = item.displayUrl;
+                    if (null != name && null != url) {
+                        html.push('<tr><th>' + name + '</th></tr><tr><td style="font-size: medium;">' + snippet + '</td></tr>' +
+                        '<tr><td><a href="' + url + '" style="text-decoration: underline; font-size: smaller;" target="_blank">' + urlD + '</a></td></tr>');
+                    }
+                }
+
+                html.push('</tbody></table>');
+                results.html(html.join(""));
+
+                results.slideDown(600);
+            }
+
+
+        });
+
+    </script>
+}
+
